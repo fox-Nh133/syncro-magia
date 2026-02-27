@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magia Studio</title>
+  <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:    #08080f;
+      --bg-surface: #0d0d18;
+      --bg-raised:  #13131f;
+      --bg-card:    #1a1a2a;
+      --border:     #252535;
+      --border-hi:  #3a3a5a;
+      --accent:     #7c3aed;
+      --accent-hi:  #a78bfa;
+      --accent-glow:#7c3aed66;
+      --pink:       #ec4899;
+      --text:       #d0d0e8;
+      --text-muted: #6060a0;
+      --red:        #ef4444;
+      --dot-off:    #14141e;
+    }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    header h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      background: linear-gradient(120deg, var(--accent-hi), var(--pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.5px;
+      margin-right: auto;
+      white-space: nowrap;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      background: var(--bg-raised);
+      color: var(--text);
+      border: 1px solid var(--border-hi);
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) {
+      background: var(--bg-card);
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+    .btn.active {
+      background: #2d0b6e;
+      border-color: var(--accent);
+      color: var(--accent-hi);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-danger:hover:not(:disabled) {
+      background: #2a0d0d;
+      border-color: var(--red);
+      box-shadow: 0 0 8px #ef444444;
+    }
+
+    /* ── Waveform section ── */
+    #waveform-section {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px 6px;
+      flex-shrink: 0;
+    }
+    #waveform { width: 100%; height: 72px; }
+    #time-display {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: right;
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+      font-family: 'Consolas', 'SF Mono', monospace;
+    }
+
+    /* ── Main layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Preview panel ── */
+    #preview-panel {
+      background: var(--bg-base);
+      border-right: 1px solid var(--border);
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 296px;
+    }
+    #preview-panel .panel-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      align-self: flex-start;
+    }
+    #dot-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 5px;
+      width: 100%;
+    }
+    .dot {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--dot-off);
+      border: 1px solid #1e1e2e;
+      transition: background-color 0.08s, box-shadow 0.08s;
+    }
+
+    /* ── Editor area ── */
+    .editor-area {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Keyframe list panel ── */
+    #keyframe-panel {
+      width: 210px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    #keyframe-panel .panel-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      padding: 11px 14px 9px;
+      border-bottom: 1px solid var(--border);
+    }
+    #timeline-controls {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    #add-keyframe-btn { width: 100%; text-align: center; }
+
+    #keyframe-list { overflow-y: auto; flex: 1; }
+    .kf-item {
+      padding: 9px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #0f0f18;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.1s;
+    }
+    .kf-item:hover { background: var(--bg-raised); }
+    .kf-item.selected {
+      background: #1a0840;
+      border-left: 3px solid var(--accent);
+      padding-left: 9px;
+    }
+    .kf-time {
+      color: var(--accent-hi);
+      font-weight: 600;
+      font-family: 'Consolas', 'SF Mono', monospace;
+      font-size: 0.82rem;
+    }
+    .kf-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--red);
+      opacity: 0.4;
+      font-size: 0.75rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .kf-del:hover { opacity: 1; background: #2a1010; }
+
+    /* ── Code editor panel ── */
+    #code-panel {
+      flex: 1;
+      background: #090910;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    #code-panel-header {
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #selected-time-label {
+      color: var(--accent-hi);
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'Consolas', 'SF Mono', monospace;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    #code-editor {
+      flex: 1;
+      background: transparent;
+      color: #c8d0ff;
+      border: none;
+      outline: none;
+      padding: 16px 18px;
+      font-family: 'Fira Code', 'Consolas', 'SF Mono', monospace;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      resize: none;
+      tab-size: 2;
+    }
+    #code-editor::placeholder { color: #2a2a40; }
+    #code-editor:disabled { opacity: 0.25; pointer-events: none; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4a4a7a; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header>
+  <h1>✦ Magia Studio</h1>
+  <button class="btn" id="upload-btn">♪ 音源を読み込む</button>
+  <input type="file" id="audio-input" accept="audio/*" style="display:none">
+  <button class="btn" id="play-btn" disabled>▶ 再生</button>
+  <button class="btn" id="export-btn">⬇ JSON エクスポート</button>
+</header>
+
+<!-- ═══ Waveform ═══ -->
+<div id="waveform-section">
+  <div id="waveform"></div>
+  <div id="time-display">00:00.00 / 00:00.00</div>
+</div>
+
+<!-- ═══ Main ═══ -->
+<div class="main">
+
+  <!-- Preview -->
+  <div id="preview-panel">
+    <div class="panel-label">Preview — 60 Devices (5 × 12)</div>
+    <div id="dot-grid"></div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-area">
+
+    <!-- Keyframe list -->
+    <div id="keyframe-panel">
+      <div class="panel-label">Keyframes</div>
+      <div id="timeline-controls">
+        <button class="btn" id="add-keyframe-btn" disabled>＋ キーフレーム追加</button>
+      </div>
+      <div id="keyframe-list"></div>
+    </div>
+
+    <!-- Code editor -->
+    <div id="code-panel">
+      <div id="code-panel-header">
+        <span>MagiaML Editor</span>
+        <span id="selected-time-label">— キーフレームを選択してください</span>
+      </div>
+      <textarea id="code-editor"
+        placeholder="キーフレームを選択するとここにコードを記述できます。
+
+例:
+all { color: #000000; effect: static; }
+range(0%, 50%) { color: #7c3aed; effect: wave; duration: 2; }
+filter(odd) { color: #ec4899; effect: flash; duration: 0.5; }
+index(0) { color: #ffffff; effect: static; }
+all { color: #a78bfa; effect: split; duration: 1.5; }
+all { color: #ec4899; effect: split-flash; duration: 2; }"
+        disabled></textarea>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// Constants & State
+// ════════════════════════════════════════════
+const DOT_COUNT = 60;
+
+let wavesurfer  = null;
+let audioName   = '';
+let keyframes   = [];          // [{ id, time, code }]
+let selectedId  = null;
+let currentTime = 0;
+let rafId       = null;
+
+// ════════════════════════════════════════════
+// DOM references
+// ════════════════════════════════════════════
+const uploadBtn       = document.getElementById('upload-btn');
+const audioInput      = document.getElementById('audio-input');
+const playBtn         = document.getElementById('play-btn');
+const exportBtn       = document.getElementById('export-btn');
+const addKfBtn        = document.getElementById('add-keyframe-btn');
+const codeEditor      = document.getElementById('code-editor');
+const kfList          = document.getElementById('keyframe-list');
+const timeDisplay     = document.getElementById('time-display');
+const selectedTimeLbl = document.getElementById('selected-time-label');
+const dotGrid         = document.getElementById('dot-grid');
+
+// ════════════════════════════════════════════
+// Init dots
+// ════════════════════════════════════════════
+function initDots() {
+  dotGrid.innerHTML = '';
+  for (let i = 0; i < DOT_COUNT; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.dataset.idx = i;
+    dotGrid.appendChild(d);
+  }
+}
+
+// ════════════════════════════════════════════
+// WaveSurfer
+// ════════════════════════════════════════════
+function initWaveSurfer(url, name) {
+  if (wavesurfer) { wavesurfer.destroy(); wavesurfer = null; }
+  audioName = name;
+
+  wavesurfer = WaveSurfer.create({
+    container:     '#waveform',
+    waveColor:     '#3a3a60',
+    progressColor: '#7c3aed',
+    cursorColor:   '#a78bfa',
+    cursorWidth:   2,
+    height:        72,
+    normalize:     true,
+  });
+
+  wavesurfer.load(url);
+
+  wavesurfer.on('ready', () => {
+    playBtn.disabled  = false;
+    addKfBtn.disabled = false;
+    updateTimeDisplay(0);
+  });
+
+  wavesurfer.on('finish', () => {
+    playBtn.textContent = '▶ 再生';
+    playBtn.classList.remove('active');
+  });
+}
+
+// RAF loop — keeps preview in sync during and after playback
+function startLoop() {
+  cancelAnimationFrame(rafId);
+  function tick() {
+    if (wavesurfer) {
+      const t = wavesurfer.getCurrentTime() || 0;
+      if (Math.abs(t - currentTime) > 0.001) {
+        currentTime = t;
+        updateTimeDisplay(t);
+        applyKeyframeAt(t);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+  rafId = requestAnimationFrame(tick);
+}
+
+// ════════════════════════════════════════════
+// Audio load & playback
+// ════════════════════════════════════════════
+uploadBtn.addEventListener('click', () => audioInput.click());
+
+audioInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  initWaveSurfer(URL.createObjectURL(file), file.name);
+  startLoop();
+  playBtn.textContent = '▶ 再生';
+  playBtn.classList.remove('active');
+  e.target.value = '';
+});
+
+playBtn.addEventListener('click', () => {
+  if (!wavesurfer) return;
+  wavesurfer.playPause();
+  const playing = wavesurfer.isPlaying();
+  playBtn.textContent = playing ? '⏹ 停止' : '▶ 再生';
+  playBtn.classList.toggle('active', playing);
+});
+
+// ════════════════════════════════════════════
+// Time formatting
+// ════════════════════════════════════════════
+function fmtTime(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m   = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(2).padStart(5, '0');
+  return `${String(m).padStart(2, '0')}:${sec}`;
+}
+
+function updateTimeDisplay(t) {
+  const dur = wavesurfer ? (wavesurfer.getDuration() || 0) : 0;
+  timeDisplay.textContent = `${fmtTime(t)} / ${fmtTime(dur)}`;
+}
+
+// ════════════════════════════════════════════
+// Keyframe management
+// ════════════════════════════════════════════
+function uid() { return '_' + Math.random().toString(36).slice(2, 9); }
+
+addKfBtn.addEventListener('click', () => {
+  const t = parseFloat(currentTime.toFixed(3));
+  const dup = keyframes.find(k => Math.abs(k.time - t) < 0.05);
+  if (dup) { selectKeyframe(dup.id); return; }
+  const kf = { id: uid(), time: t, code: '' };
+  keyframes.push(kf);
+  keyframes.sort((a, b) => a.time - b.time);
+  renderKfList();
+  selectKeyframe(kf.id);
+});
+
+function renderKfList() {
+  kfList.innerHTML = '';
+  keyframes.forEach(kf => {
+    const item = document.createElement('div');
+    item.className = 'kf-item' + (kf.id === selectedId ? ' selected' : '');
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'kf-time';
+    timeSpan.textContent = fmtTime(kf.time);
+
+    const del = document.createElement('button');
+    del.className = 'kf-del';
+    del.textContent = '✕';
+    del.title = '削除';
+    del.addEventListener('click', e => { e.stopPropagation(); deleteKf(kf.id); });
+
+    item.appendChild(timeSpan);
+    item.appendChild(del);
+    item.addEventListener('click', () => selectKeyframe(kf.id));
+    kfList.appendChild(item);
+  });
+}
+
+function selectKeyframe(id) {
+  // Persist current edits
+  if (selectedId) {
+    const prev = keyframes.find(k => k.id === selectedId);
+    if (prev) prev.code = codeEditor.value;
+  }
+
+  selectedId = id;
+  const kf = keyframes.find(k => k.id === id);
+  if (kf) {
+    codeEditor.value    = kf.code;
+    codeEditor.disabled = false;
+    selectedTimeLbl.textContent = `@ ${fmtTime(kf.time)}`;
+    codeEditor.focus();
+  } else {
+    codeEditor.value    = '';
+    codeEditor.disabled = true;
+    selectedTimeLbl.textContent = '— キーフレームを選択してください';
+  }
+  renderKfList();
+}
+
+function deleteKf(id) {
+  keyframes = keyframes.filter(k => k.id !== id);
+  if (selectedId === id) {
+    selectedId = null;
+    codeEditor.value    = '';
+    codeEditor.disabled = true;
+    selectedTimeLbl.textContent = '— キーフレームを選択してください';
+  }
+  renderKfList();
+}
+
+codeEditor.addEventListener('input', () => {
+  if (selectedId) {
+    const kf = keyframes.find(k => k.id === selectedId);
+    if (kf) kf.code = codeEditor.value;
+  }
+});
+
+// ════════════════════════════════════════════
+// MagiaML Parser
+// ════════════════════════════════════════════
+
+/**
+ * Parse MagiaML source code into rule objects.
+ * @returns {Array<{target:string, props:{color,effect,duration}}>}
+ */
+function parseMagiaML(src) {
+  const rules = [];
+  const ruleRe = /([a-zA-Z]+(?:\([^)]*\))?)\s*\{([^}]*)\}/g;
+  let m;
+  while ((m = ruleRe.exec(src)) !== null) {
+    const target = m[1].trim();
+    const body   = m[2];
+    const props  = {};
+    const propRe = /(\w+)\s*:\s*([^;]+);?/g;
+    let pm;
+    while ((pm = propRe.exec(body)) !== null) {
+      props[pm[1].trim()] = pm[2].trim();
+    }
+    rules.push({ target, props });
+  }
+  return rules;
+}
+
+/**
+ * Resolve a target string to an array of device indices (0-based).
+ */
+function resolveTarget(target) {
+  if (target === 'all') {
+    return Array.from({ length: DOT_COUNT }, (_, i) => i);
+  }
+
+  const rangeM = target.match(/^range\(\s*(\d+(?:\.\d+)?)%\s*,\s*(\d+(?:\.\d+)?)%\s*\)$/);
+  if (rangeM) {
+    const lo = parseFloat(rangeM[1]) / 100;
+    const hi = parseFloat(rangeM[2]) / 100;
+    return Array.from({ length: DOT_COUNT }, (_, i) => i)
+      .filter(i => {
+        const pos = i / (DOT_COUNT - 1);
+        return pos >= lo && pos <= hi;
+      });
+  }
+
+  const filterM = target.match(/^filter\((odd|even)\)$/);
+  if (filterM) {
+    const odd = filterM[1] === 'odd';
+    // "odd" = devices numbered 1,3,5... = index 0,2,4...
+    return Array.from({ length: DOT_COUNT }, (_, i) => i)
+      .filter(i => odd ? (i % 2 === 0) : (i % 2 === 1));
+  }
+
+  const idxM = target.match(/^index\((\d+)\)$/);
+  if (idxM) {
+    const n = parseInt(idxM[1]);
+    return (n >= 0 && n < DOT_COUNT) ? [n] : [];
+  }
+
+  return [];
+}
+
+// ════════════════════════════════════════════
+// Preview rendering
+// ════════════════════════════════════════════
+
+function applyKeyframeAt(time) {
+  // Collect all keyframes up to `time`, in chronological order
+  const active = keyframes
+    .filter(k => k.time <= time)
+    .sort((a, b) => a.time - b.time);
+
+  // Build per-device state by stacking keyframes (later overrides earlier)
+  // state[i] = { color, effect, duration, kfTime }
+  const state = Array.from({ length: DOT_COUNT }, () => ({
+    color: null, effect: 'static', duration: 1, kfTime: 0,
+  }));
+
+  active.forEach(kf => {
+    const rules = parseMagiaML(kf.code);
+    rules.forEach(rule => {
+      const color    = rule.props.color    || '#ffffff';
+      const effect   = rule.props.effect   || 'static';
+      const duration = parseFloat(rule.props.duration || '1');
+      resolveTarget(rule.target).forEach(i => {
+        state[i] = { color, effect, duration, kfTime: kf.time };
+      });
+    });
+  });
+
+  // Compute final display colors
+  const colors = state.map((s, i) => {
+    if (!s.color) return null;
+
+    const elapsed = time - s.kfTime;
+
+    switch (s.effect) {
+      case 'flash': {
+        // Visible for first 0.3 s, then off
+        const flashDur = Math.min(s.duration, 0.3);
+        return elapsed <= flashDur ? s.color : null;
+      }
+      case 'wave': {
+        // Wave front sweeps left→right over `duration` seconds
+        // Device i lights when front reaches it, stays lit for 0.4 s
+        const dur      = s.duration > 0 ? s.duration : 1;
+        const arriveAt = (i / (DOT_COUNT - 1)) * dur;
+        const lit      = elapsed >= arriveAt && elapsed <= arriveAt + 0.4;
+        return lit ? s.color : null;
+      }
+      case 'split': {
+        // Light spreads outward from center over `duration` seconds, stays lit
+        const dur       = s.duration > 0 ? s.duration : 1;
+        const center    = (DOT_COUNT - 1) / 2;
+        const distNorm  = Math.abs(i - center) / center; // 0=center, 1=edge
+        const arriveAt  = distNorm * dur;
+        return elapsed >= arriveAt ? s.color : null;
+      }
+      case 'split-flash': {
+        // Flash spreads outward from center, each device flashes for 0.3 s
+        const dur       = s.duration > 0 ? s.duration : 1;
+        const center    = (DOT_COUNT - 1) / 2;
+        const distNorm  = Math.abs(i - center) / center;
+        const arriveAt  = distNorm * dur;
+        const lit       = elapsed >= arriveAt && elapsed <= arriveAt + 0.3;
+        return lit ? s.color : null;
+      }
+      case 'static':
+      default:
+        return s.color;
+    }
+  });
+
+  renderDots(colors);
+}
+
+function renderDots(colors) {
+  const dots = dotGrid.children;
+  for (let i = 0; i < DOT_COUNT; i++) {
+    const c = colors[i];
+    if (c) {
+      dots[i].style.backgroundColor = c;
+      dots[i].style.boxShadow = `0 0 7px ${c}99`;
+    } else {
+      dots[i].style.backgroundColor = 'var(--dot-off)';
+      dots[i].style.boxShadow = 'none';
+    }
+  }
+}
+
+// ════════════════════════════════════════════
+// JSON Export
+// ════════════════════════════════════════════
+exportBtn.addEventListener('click', () => {
+  // Flush pending edits
+  if (selectedId) {
+    const kf = keyframes.find(k => k.id === selectedId);
+    if (kf) kf.code = codeEditor.value;
+  }
+
+  const payload = {
+    audioName: audioName || 'untitled',
+    keyframes: keyframes.map(k => ({ time: k.time, code: k.code })),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a    = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(blob),
+    download: (audioName ? audioName.replace(/\.[^.]+$/, '') : 'magia_studio') + '_show.json',
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ════════════════════════════════════════════
+// Boot
+// ════════════════════════════════════════════
+initDots();
+startLoop();
+</script>
+</body>
+</html>

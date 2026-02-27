@@ -1,0 +1,9 @@
+{
+  "audioName": "Morning.mp3",
+  "keyframes": [
+    {
+      "time": 4.139,
+      "code": "   range(0%, 100%) filter(odd) { color: #ec4899; effect: wave; duration: 0.5; }"
+    }
+  ]
+}
