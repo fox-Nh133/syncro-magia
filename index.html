@@ -261,6 +261,97 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #4a4a7a; }
+
+    /* ── Mobile tab bar ── */
+    #mobile-tabs {
+      display: none;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #mobile-tabs .tab-bar {
+      display: flex;
+    }
+    #mobile-tabs .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 12px 8px 10px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: color 0.15s, background 0.15s;
+      border-top: 2px solid transparent;
+    }
+    #mobile-tabs .tab-btn .tab-icon { font-size: 1.1rem; }
+    #mobile-tabs .tab-btn.active {
+      color: var(--accent-hi);
+      border-top-color: var(--accent);
+      background: #1a0840;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      body { font-size: 14px; }
+
+      header { padding: 8px 12px; gap: 6px; flex-wrap: wrap; }
+      header h1 { font-size: 0.95rem; }
+      .btn { padding: 6px 10px; font-size: 0.75rem; }
+
+      #waveform-section { padding: 8px 10px 4px; }
+      #waveform { height: 56px; }
+
+      #mobile-tabs { display: block; }
+
+      .main {
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* On mobile, panels stack and only active one shows */
+      #preview-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 10px;
+        flex-shrink: 0;
+        display: none;
+      }
+      #preview-panel.mobile-active { display: flex; flex: 1; }
+
+      .editor-area { display: contents; }
+
+      #keyframe-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        display: none;
+        flex-shrink: 0;
+      }
+      #keyframe-panel.mobile-active {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      #code-panel { display: none; }
+      #code-panel.mobile-active { display: flex; flex: 1; }
+
+      /* Dot grid fills nicely on mobile */
+      #dot-grid { gap: 4px; }
+
+      /* Code editor font slightly smaller on mobile */
+      #code-editor { font-size: 0.82rem; padding: 12px 14px; }
+    }
+
+    @media (max-width: 480px) {
+      header { gap: 4px; }
+      .btn { padding: 5px 8px; font-size: 0.7rem; }
+    }
   </style>
 </head>
 <body>
@@ -271,7 +362,9 @@
   <button class="btn" id="upload-btn">♪ 音源を読み込む</button>
   <input type="file" id="audio-input" accept="audio/*" style="display:none">
   <button class="btn" id="play-btn" disabled>▶ 再生</button>
-  <button class="btn" id="export-btn">⬇ JSON エクスポート</button>
+  <button class="btn" id="import-btn">⬆ JSONインポート</button>
+  <input type="file" id="json-input" accept=".json,application/json" style="display:none">
+  <button class="btn" id="export-btn">⬇ JSONエクスポート</button>
 </header>
 
 <!-- ═══ Waveform ═══ -->
@@ -323,6 +416,24 @@ all { color: #ec4899; effect: split-flash; duration: 2; }"
   </div>
 </div>
 
+<!-- ═══ Mobile Tab Bar ═══ -->
+<div id="mobile-tabs">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-panel="preview-panel">
+      <span class="tab-icon">👁</span>
+      <span>プレビュー</span>
+    </button>
+    <button class="tab-btn" data-panel="keyframe-panel">
+      <span class="tab-icon">⏱</span>
+      <span>キーフレーム</span>
+    </button>
+    <button class="tab-btn" data-panel="code-panel">
+      <span class="tab-icon">✏️</span>
+      <span>コード</span>
+    </button>
+  </div>
+</div>
+
 <script>
 // ════════════════════════════════════════════
 // Constants & State
@@ -342,6 +453,8 @@ let rafId       = null;
 const uploadBtn       = document.getElementById('upload-btn');
 const audioInput      = document.getElementById('audio-input');
 const playBtn         = document.getElementById('play-btn');
+const importBtn       = document.getElementById('import-btn');
+const jsonInput       = document.getElementById('json-input');
 const exportBtn       = document.getElementById('export-btn');
 const addKfBtn        = document.getElementById('add-keyframe-btn');
 const codeEditor      = document.getElementById('code-editor');
@@ -679,6 +792,39 @@ function renderDots(colors) {
 }
 
 // ════════════════════════════════════════════
+// JSON Import
+// ════════════════════════════════════════════
+importBtn.addEventListener('click', () => jsonInput.click());
+
+jsonInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data.keyframes || !Array.isArray(data.keyframes)) throw new Error('Invalid format');
+
+      // Reset editor state
+      selectedId = null;
+      codeEditor.value    = '';
+      codeEditor.disabled = true;
+      selectedTimeLbl.textContent = '— キーフレームを選択してください';
+
+      keyframes = data.keyframes.map(k => ({ id: uid(), time: k.time, code: k.code || '' }));
+      keyframes.sort((a, b) => a.time - b.time);
+      renderKfList();
+
+      if (data.audioName) audioName = data.audioName;
+    } catch (err) {
+      alert('JSONのインポートに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ════════════════════════════════════════════
 // JSON Export
 // ════════════════════════════════════════════
 exportBtn.addEventListener('click', () => {
@@ -703,10 +849,44 @@ exportBtn.addEventListener('click', () => {
 });
 
 // ════════════════════════════════════════════
+// Mobile tab switching
+// ════════════════════════════════════════════
+const mobilePanels = ['preview-panel', 'keyframe-panel', 'code-panel'];
+const tabBtns = document.querySelectorAll('#mobile-tabs .tab-btn');
+
+function isMobile() { return window.innerWidth <= 768; }
+
+function activateMobilePanel(panelId) {
+  mobilePanels.forEach(id => {
+    document.getElementById(id).classList.toggle('mobile-active', id === panelId);
+  });
+  tabBtns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.panel === panelId);
+  });
+}
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => activateMobilePanel(btn.dataset.panel));
+});
+
+// When switching to code panel on mobile, focus editor if a keyframe is selected
+document.querySelector('[data-panel="code-panel"]').addEventListener('click', () => {
+  if (isMobile() && !codeEditor.disabled) codeEditor.focus();
+});
+
+// ════════════════════════════════════════════
 // Boot
 // ════════════════════════════════════════════
 initDots();
 startLoop();
+
+// Default: load audio.mp3 if available
+fetch('audio.mp3', { method: 'HEAD' })
+  .then(r => { if (r.ok) { initWaveSurfer('audio.mp3', 'audio.mp3'); } })
+  .catch(() => {});
+
+// Init mobile panel (show preview by default)
+activateMobilePanel('preview-panel');
 </script>
 </body>
 </html>
