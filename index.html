@@ -240,7 +240,10 @@
       font-family: 'Consolas', 'SF Mono', monospace;
       text-transform: none;
       letter-spacing: 0;
+      flex: 1;
+      text-align: center;
     }
+    #rule-builder-btn { font-size: 0.75rem; padding: 5px 11px; }
     #code-editor {
       flex: 1;
       background: transparent;
@@ -353,6 +356,113 @@
       header { gap: 4px; }
       .btn { padding: 5px 8px; font-size: 0.7rem; }
     }
+
+    /* ── Rule Builder Dialog ── */
+    #rule-dialog-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #rule-dialog-overlay.open { display: flex; }
+    #rule-dialog {
+      background: var(--bg-card);
+      border: 1px solid var(--border-hi);
+      border-radius: 10px;
+      padding: 22px 24px 18px;
+      width: min(420px, 92vw);
+      box-shadow: 0 8px 40px #00000088;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #rule-dialog h2 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-hi);
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .rd-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .rd-row label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+    }
+    .rd-row select, .rd-row input[type="text"], .rd-row input[type="number"] {
+      background: var(--bg-raised);
+      color: var(--text);
+      border: 1px solid var(--border-hi);
+      border-radius: 5px;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .rd-row select:focus, .rd-row input:focus {
+      border-color: var(--accent);
+    }
+    .rd-row input[type="color"] {
+      width: 44px;
+      height: 34px;
+      border: 1px solid var(--border-hi);
+      border-radius: 5px;
+      background: var(--bg-raised);
+      cursor: pointer;
+      padding: 2px;
+    }
+    .rd-color-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .rd-color-row input[type="text"] {
+      flex: 1;
+      font-family: 'Consolas', monospace;
+    }
+    .rd-sub-params {
+      display: flex;
+      gap: 8px;
+    }
+    .rd-sub-params .rd-row { flex: 1; }
+    #rd-duration-row { display: none; }
+    .rd-preview-code {
+      background: #060610;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 12px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: #c8d0ff;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 32px;
+    }
+    .rd-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .rd-actions .btn-insert {
+      background: #2d0b6e;
+      border-color: var(--accent);
+      color: var(--accent-hi);
+    }
+    .rd-actions .btn-insert:hover {
+      background: #3d1090;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
   </style>
 </head>
 <body>
@@ -400,6 +510,7 @@
       <div id="code-panel-header">
         <span>MagiaML Editor</span>
         <span id="selected-time-label">— キーフレームを選択してください</span>
+        <button class="btn" id="rule-builder-btn" disabled title="ルールを追加"><i class="bi bi-magic"></i> ルール追加</button>
       </div>
       <textarea id="code-editor"
         placeholder="キーフレームを選択するとここにコードを記述できます。
@@ -432,6 +543,79 @@ all { color: #ec4899; effect: split-flash; duration: 2; }"
       <span class="tab-icon"><i class="bi bi-pencil"></i></span>
       <span>コード</span>
     </button>
+  </div>
+</div>
+
+<!-- ═══ Rule Builder Dialog ═══ -->
+<div id="rule-dialog-overlay">
+  <div id="rule-dialog">
+    <h2><i class="bi bi-magic"></i> ルールを追加</h2>
+
+    <!-- Selector -->
+    <div class="rd-row">
+      <label>セレクタ（対象デバイス）</label>
+      <select id="rd-selector">
+        <option value="all">all — 全60台</option>
+        <option value="range">range() — 範囲指定 (lo%〜hi%)</option>
+        <option value="filter-odd">filter(odd) — 奇数番デバイス</option>
+        <option value="filter-even">filter(even) — 偶数番デバイス</option>
+        <option value="index">index(n) — 1台指定</option>
+      </select>
+    </div>
+
+    <!-- Selector sub-params -->
+    <div id="rd-range-params" class="rd-sub-params" style="display:none">
+      <div class="rd-row">
+        <label>開始 lo%</label>
+        <input type="number" id="rd-range-lo" value="0" min="0" max="100" step="1">
+      </div>
+      <div class="rd-row">
+        <label>終了 hi%</label>
+        <input type="number" id="rd-range-hi" value="50" min="0" max="100" step="1">
+      </div>
+    </div>
+    <div id="rd-index-params" style="display:none" class="rd-row">
+      <label>インデックス n (0〜59)</label>
+      <input type="number" id="rd-index-n" value="0" min="0" max="59" step="1">
+    </div>
+
+    <!-- Color -->
+    <div class="rd-row">
+      <label>カラー</label>
+      <div class="rd-color-row">
+        <input type="color" id="rd-color-picker" value="#7c3aed">
+        <input type="text" id="rd-color-text" value="#7c3aed" maxlength="7" placeholder="#rrggbb">
+      </div>
+    </div>
+
+    <!-- Effect -->
+    <div class="rd-row">
+      <label>エフェクト</label>
+      <select id="rd-effect">
+        <option value="static">static — 常時点灯</option>
+        <option value="flash">flash — 短時間フラッシュ (max 0.3s)</option>
+        <option value="wave">wave — 左から右へ波</option>
+        <option value="split">split — 中央から外側へ広がる</option>
+        <option value="split-flash">split-flash — 中央から広がってフラッシュ</option>
+      </select>
+    </div>
+
+    <!-- Duration -->
+    <div class="rd-row" id="rd-duration-row">
+      <label>duration（秒）</label>
+      <input type="number" id="rd-duration" value="1" min="0.1" step="0.1">
+    </div>
+
+    <!-- Preview -->
+    <div class="rd-row">
+      <label>プレビュー</label>
+      <div class="rd-preview-code" id="rd-preview"></div>
+    </div>
+
+    <div class="rd-actions">
+      <button class="btn" id="rd-cancel-btn">キャンセル</button>
+      <button class="btn btn-insert" id="rd-insert-btn"><i class="bi bi-plus-lg"></i> 挿入</button>
+    </div>
   </div>
 </div>
 
@@ -614,11 +798,13 @@ function selectKeyframe(id) {
   if (kf) {
     codeEditor.value    = kf.code;
     codeEditor.disabled = false;
+    document.getElementById('rule-builder-btn').disabled = false;
     selectedTimeLbl.textContent = `@ ${fmtTime(kf.time)}`;
     codeEditor.focus();
   } else {
     codeEditor.value    = '';
     codeEditor.disabled = true;
+    document.getElementById('rule-builder-btn').disabled = true;
     selectedTimeLbl.textContent = '— キーフレームを選択してください';
   }
   renderKfList();
@@ -630,6 +816,7 @@ function deleteKf(id) {
     selectedId = null;
     codeEditor.value    = '';
     codeEditor.disabled = true;
+    document.getElementById('rule-builder-btn').disabled = true;
     selectedTimeLbl.textContent = '— キーフレームを選択してください';
   }
   renderKfList();
@@ -873,6 +1060,116 @@ tabBtns.forEach(btn => {
 // When switching to code panel on mobile, focus editor if a keyframe is selected
 document.querySelector('[data-panel="code-panel"]').addEventListener('click', () => {
   if (isMobile() && !codeEditor.disabled) codeEditor.focus();
+});
+
+// ════════════════════════════════════════════
+// Rule Builder Dialog
+// ════════════════════════════════════════════
+const ruleBuilderBtn   = document.getElementById('rule-builder-btn');
+const rdOverlay        = document.getElementById('rule-dialog-overlay');
+const rdSelector       = document.getElementById('rd-selector');
+const rdRangeParams    = document.getElementById('rd-range-params');
+const rdIndexParams    = document.getElementById('rd-index-params');
+const rdRangeLo        = document.getElementById('rd-range-lo');
+const rdRangeHi        = document.getElementById('rd-range-hi');
+const rdIndexN         = document.getElementById('rd-index-n');
+const rdColorPicker    = document.getElementById('rd-color-picker');
+const rdColorText      = document.getElementById('rd-color-text');
+const rdEffect         = document.getElementById('rd-effect');
+const rdDurationRow    = document.getElementById('rd-duration-row');
+const rdDuration       = document.getElementById('rd-duration');
+const rdPreview        = document.getElementById('rd-preview');
+const rdCancelBtn      = document.getElementById('rd-cancel-btn');
+const rdInsertBtn      = document.getElementById('rd-insert-btn');
+
+function buildRuleCode() {
+  // Selector
+  let selector;
+  switch (rdSelector.value) {
+    case 'range':
+      selector = `range(${rdRangeLo.value}%, ${rdRangeHi.value}%)`;
+      break;
+    case 'filter-odd':
+      selector = 'filter(odd)';
+      break;
+    case 'filter-even':
+      selector = 'filter(even)';
+      break;
+    case 'index':
+      selector = `index(${rdIndexN.value})`;
+      break;
+    default:
+      selector = 'all';
+  }
+
+  const color  = rdColorText.value || '#ffffff';
+  const effect = rdEffect.value;
+  const needsDuration = effect !== 'static';
+  const dur    = parseFloat(rdDuration.value) || 1;
+
+  let props = `color: ${color}; effect: ${effect};`;
+  if (needsDuration) props += ` duration: ${dur};`;
+
+  return `${selector} { ${props} }`;
+}
+
+function updateRdUi() {
+  const sel = rdSelector.value;
+  rdRangeParams.style.display = sel === 'range' ? 'flex' : 'none';
+  rdIndexParams.style.display = sel === 'index' ? 'flex' : 'none';
+
+  const needsDuration = rdEffect.value !== 'static';
+  rdDurationRow.style.display = needsDuration ? 'flex' : 'none';
+
+  rdPreview.textContent = buildRuleCode();
+}
+
+rdSelector.addEventListener('change', updateRdUi);
+rdEffect.addEventListener('change', updateRdUi);
+rdRangeLo.addEventListener('input', updateRdUi);
+rdRangeHi.addEventListener('input', updateRdUi);
+rdIndexN.addEventListener('input', updateRdUi);
+rdDuration.addEventListener('input', updateRdUi);
+
+rdColorPicker.addEventListener('input', () => {
+  rdColorText.value = rdColorPicker.value;
+  updateRdUi();
+});
+rdColorText.addEventListener('input', () => {
+  // Sync picker if valid hex
+  if (/^#[0-9a-fA-F]{6}$/.test(rdColorText.value)) {
+    rdColorPicker.value = rdColorText.value;
+  }
+  updateRdUi();
+});
+
+ruleBuilderBtn.addEventListener('click', () => {
+  updateRdUi();
+  rdOverlay.classList.add('open');
+});
+
+rdCancelBtn.addEventListener('click', () => rdOverlay.classList.remove('open'));
+rdOverlay.addEventListener('click', e => { if (e.target === rdOverlay) rdOverlay.classList.remove('open'); });
+
+rdInsertBtn.addEventListener('click', () => {
+  const code = buildRuleCode();
+  // Insert at cursor or append
+  const start = codeEditor.selectionStart;
+  const end   = codeEditor.selectionEnd;
+  const val   = codeEditor.value;
+  const prefix = val.length > 0 && !val.endsWith('\n') ? '\n' : '';
+  const insertion = prefix + code + '\n';
+  codeEditor.value = val.slice(0, start) + insertion + val.slice(end);
+  // Move cursor after inserted text
+  const newPos = start + insertion.length;
+  codeEditor.selectionStart = codeEditor.selectionEnd = newPos;
+  codeEditor.focus();
+  // Sync to keyframe data
+  if (selectedId) {
+    const kf = keyframes.find(k => k.id === selectedId);
+    if (kf) kf.code = codeEditor.value;
+  }
+  rdOverlay.classList.remove('open');
 });
 
 // ════════════════════════════════════════════
