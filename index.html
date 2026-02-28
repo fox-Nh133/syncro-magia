@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Magia Studio</title>
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -358,13 +359,13 @@
 
 <!-- ═══ Header ═══ -->
 <header>
-  <h1>✦ Magia Studio</h1>
-  <button class="btn" id="upload-btn">♪ 音源を読み込む</button>
+  <h1><i class="bi bi-stars"></i> Magia Studio</h1>
+  <button class="btn" id="upload-btn"><i class="bi bi-music-note-beamed"></i> 音源を読み込む</button>
   <input type="file" id="audio-input" accept="audio/*" style="display:none">
-  <button class="btn" id="play-btn" disabled>▶ 再生</button>
-  <button class="btn" id="import-btn">⬆ JSONインポート</button>
+  <button class="btn" id="play-btn" disabled><i class="bi bi-play-fill"></i> 再生</button>
+  <button class="btn" id="import-btn"><i class="bi bi-upload"></i> JSONインポート</button>
   <input type="file" id="json-input" accept=".json,application/json" style="display:none">
-  <button class="btn" id="export-btn">⬇ JSONエクスポート</button>
+  <button class="btn" id="export-btn"><i class="bi bi-download"></i> JSONエクスポート</button>
 </header>
 
 <!-- ═══ Waveform ═══ -->
@@ -389,7 +390,7 @@
     <div id="keyframe-panel">
       <div class="panel-label">Keyframes</div>
       <div id="timeline-controls">
-        <button class="btn" id="add-keyframe-btn" disabled>＋ キーフレーム追加</button>
+        <button class="btn" id="add-keyframe-btn" disabled><i class="bi bi-plus-lg"></i> キーフレーム追加</button>
       </div>
       <div id="keyframe-list"></div>
     </div>
@@ -420,15 +421,15 @@ all { color: #ec4899; effect: split-flash; duration: 2; }"
 <div id="mobile-tabs">
   <div class="tab-bar">
     <button class="tab-btn active" data-panel="preview-panel">
-      <span class="tab-icon">👁</span>
+      <span class="tab-icon"><i class="bi bi-eye"></i></span>
       <span>プレビュー</span>
     </button>
     <button class="tab-btn" data-panel="keyframe-panel">
-      <span class="tab-icon">⏱</span>
+      <span class="tab-icon"><i class="bi bi-clock"></i></span>
       <span>キーフレーム</span>
     </button>
     <button class="tab-btn" data-panel="code-panel">
-      <span class="tab-icon">✏️</span>
+      <span class="tab-icon"><i class="bi bi-pencil"></i></span>
       <span>コード</span>
     </button>
   </div>
@@ -502,7 +503,7 @@ function initWaveSurfer(url, name) {
   });
 
   wavesurfer.on('finish', () => {
-    playBtn.textContent = '▶ 再生';
+    playBtn.innerHTML = '<i class="bi bi-play-fill"></i> 再生';
     playBtn.classList.remove('active');
   });
 }
@@ -534,7 +535,7 @@ audioInput.addEventListener('change', e => {
   if (!file) return;
   initWaveSurfer(URL.createObjectURL(file), file.name);
   startLoop();
-  playBtn.textContent = '▶ 再生';
+  playBtn.innerHTML = '<i class="bi bi-play-fill"></i> 再生';
   playBtn.classList.remove('active');
   e.target.value = '';
 });
@@ -543,7 +544,7 @@ playBtn.addEventListener('click', () => {
   if (!wavesurfer) return;
   wavesurfer.playPause();
   const playing = wavesurfer.isPlaying();
-  playBtn.textContent = playing ? '⏹ 停止' : '▶ 再生';
+  playBtn.innerHTML = playing ? '<i class="bi bi-stop-fill"></i> 停止' : '<i class="bi bi-play-fill"></i> 再生';
   playBtn.classList.toggle('active', playing);
 });
 
@@ -590,7 +591,7 @@ function renderKfList() {
 
     const del = document.createElement('button');
     del.className = 'kf-del';
-    del.textContent = '✕';
+    del.innerHTML = '<i class="bi bi-x"></i>';
     del.title = '削除';
     del.addEventListener('click', e => { e.stopPropagation(); deleteKf(kf.id); });
 
