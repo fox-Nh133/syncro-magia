@@ -436,6 +436,7 @@
     }
     .rd-sub-params .rd-row { flex: 1; }
     #rd-duration-row { display: none; }
+    #rd-fade-row { display: none; }
     .rd-preview-code {
       background: #060610;
       border: 1px solid var(--border);
@@ -604,6 +605,12 @@ all { color: #ec4899; effect: split-flash; duration: 2; }"
     <div class="rd-row" id="rd-duration-row">
       <label>duration（秒）</label>
       <input type="number" id="rd-duration" value="1" min="0.1" step="0.1">
+    </div>
+
+    <!-- Fade (static only) -->
+    <div class="rd-row" id="rd-fade-row">
+      <label>fade（秒）</label>
+      <input type="number" id="rd-fade" value="0" min="0" step="0.1">
     </div>
 
     <!-- Preview -->
@@ -895,6 +902,19 @@ function resolveTarget(target) {
 // Preview rendering
 // ════════════════════════════════════════════
 
+function lerpColor(a, b, t) {
+  const ar = parseInt(a.slice(1, 3), 16);
+  const ag = parseInt(a.slice(3, 5), 16);
+  const ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16);
+  const bg = parseInt(b.slice(3, 5), 16);
+  const bb = parseInt(b.slice(5, 7), 16);
+  const r  = Math.round(ar + (br - ar) * t);
+  const g  = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
+}
+
 function applyKeyframeAt(time) {
   // Collect all keyframes up to `time`, in chronological order
   const active = keyframes
@@ -902,9 +922,9 @@ function applyKeyframeAt(time) {
     .sort((a, b) => a.time - b.time);
 
   // Build per-device state by stacking keyframes (later overrides earlier)
-  // state[i] = { color, effect, duration, kfTime }
+  // state[i] = { color, effect, duration, fade, kfTime }
   const state = Array.from({ length: DOT_COUNT }, () => ({
-    color: null, effect: 'static', duration: 1, kfTime: 0,
+    color: null, effect: 'static', duration: 1, fade: 0, kfTime: 0,
   }));
 
   active.forEach(kf => {
@@ -913,8 +933,9 @@ function applyKeyframeAt(time) {
       const color    = rule.props.color    || '#ffffff';
       const effect   = rule.props.effect   || 'static';
       const duration = parseFloat(rule.props.duration || '1');
+      const fade     = parseFloat(rule.props.fade     || '0');
       resolveTarget(rule.target).forEach(i => {
-        state[i] = { color, effect, duration, kfTime: kf.time };
+        state[i] = { color, effect, duration, fade, kfTime: kf.time };
       });
     });
   });
@@ -957,8 +978,18 @@ function applyKeyframeAt(time) {
         return lit ? s.color : null;
       }
       case 'static':
-      default:
+      default: {
+        const effectiveFade = Math.min(s.fade ?? 0, s.duration);
+        if (elapsed >= s.duration) return null;
+        if (effectiveFade > 0) {
+          const fadeStart = s.duration - effectiveFade;
+          if (elapsed >= fadeStart) {
+            const p = (elapsed - fadeStart) / effectiveFade;
+            return lerpColor(s.color, '#000000', p);
+          }
+        }
         return s.color;
+      }
     }
   });
 
@@ -1078,6 +1109,8 @@ const rdColorText      = document.getElementById('rd-color-text');
 const rdEffect         = document.getElementById('rd-effect');
 const rdDurationRow    = document.getElementById('rd-duration-row');
 const rdDuration       = document.getElementById('rd-duration');
+const rdFadeRow        = document.getElementById('rd-fade-row');
+const rdFade           = document.getElementById('rd-fade');
 const rdPreview        = document.getElementById('rd-preview');
 const rdCancelBtn      = document.getElementById('rd-cancel-btn');
 const rdInsertBtn      = document.getElementById('rd-insert-btn');
@@ -1104,11 +1137,12 @@ function buildRuleCode() {
 
   const color  = rdColorText.value || '#ffffff';
   const effect = rdEffect.value;
-  const needsDuration = effect !== 'static';
   const dur    = parseFloat(rdDuration.value) || 1;
+  const fade   = parseFloat(rdFade.value) || 0;
 
   let props = `color: ${color}; effect: ${effect};`;
-  if (needsDuration) props += ` duration: ${dur};`;
+  props += ` duration: ${dur};`;
+  if (effect === 'static' && fade > 0) props += ` fade: ${fade};`;
 
   return `${selector} { ${props} }`;
 }
@@ -1118,8 +1152,9 @@ function updateRdUi() {
   rdRangeParams.style.display = sel === 'range' ? 'flex' : 'none';
   rdIndexParams.style.display = sel === 'index' ? 'flex' : 'none';
 
-  const needsDuration = rdEffect.value !== 'static';
-  rdDurationRow.style.display = needsDuration ? 'flex' : 'none';
+  const isStatic = rdEffect.value === 'static';
+  rdDurationRow.style.display = 'flex';
+  rdFadeRow.style.display     = isStatic ? 'flex' : 'none';
 
   rdPreview.textContent = buildRuleCode();
 }
@@ -1130,6 +1165,7 @@ rdRangeLo.addEventListener('input', updateRdUi);
 rdRangeHi.addEventListener('input', updateRdUi);
 rdIndexN.addEventListener('input', updateRdUi);
 rdDuration.addEventListener('input', updateRdUi);
+rdFade.addEventListener('input', updateRdUi);
 
 rdColorPicker.addEventListener('input', () => {
   rdColorText.value = rdColorPicker.value;
