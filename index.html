@@ -596,8 +596,11 @@ all { color: #ec4899; effect: split-flash; duration: 2; }"
         <option value="static">static — 常時点灯</option>
         <option value="flash">flash — 短時間フラッシュ (max 0.3s)</option>
         <option value="wave">wave — 左から右へ波</option>
+        <option value="wave-reverse">wave-reverse — 右から左へ波</option>
         <option value="split">split — 中央から外側へ広がる</option>
+        <option value="split-reverse">split-reverse — 外側から中央へ収束</option>
         <option value="split-flash">split-flash — 中央から広がってフラッシュ</option>
+        <option value="split-flash-reverse">split-flash-reverse — 外側から収束してフラッシュ</option>
       </select>
     </div>
 
@@ -960,6 +963,14 @@ function applyKeyframeAt(time) {
         const lit      = elapsed >= arriveAt && elapsed <= arriveAt + 0.4;
         return lit ? s.color : null;
       }
+      case 'wave-reverse': {
+        // Wave front sweeps right→left over `duration` seconds
+        const dur      = s.duration > 0 ? s.duration : 1;
+        const ratio    = i / (DOT_COUNT - 1);
+        const arriveAt = (1 - ratio) * dur;
+        const lit      = elapsed >= arriveAt && elapsed <= arriveAt + 0.4;
+        return lit ? s.color : null;
+      }
       case 'split': {
         // Light spreads outward from center over `duration` seconds, stays lit
         const dur       = s.duration > 0 ? s.duration : 1;
@@ -968,12 +979,29 @@ function applyKeyframeAt(time) {
         const arriveAt  = distNorm * dur;
         return elapsed >= arriveAt ? s.color : null;
       }
+      case 'split-reverse': {
+        // Light converges from edges to center over `duration` seconds, stays lit
+        const dur       = s.duration > 0 ? s.duration : 1;
+        const center    = (DOT_COUNT - 1) / 2;
+        const distNorm  = Math.abs(i - center) / center;
+        const arriveAt  = (1 - distNorm) * dur;
+        return elapsed >= arriveAt ? s.color : null;
+      }
       case 'split-flash': {
         // Flash spreads outward from center, each device flashes for 0.3 s
         const dur       = s.duration > 0 ? s.duration : 1;
         const center    = (DOT_COUNT - 1) / 2;
         const distNorm  = Math.abs(i - center) / center;
         const arriveAt  = distNorm * dur;
+        const lit       = elapsed >= arriveAt && elapsed <= arriveAt + 0.3;
+        return lit ? s.color : null;
+      }
+      case 'split-flash-reverse': {
+        // Flash converges from edges to center, each device flashes for 0.3 s
+        const dur       = s.duration > 0 ? s.duration : 1;
+        const center    = (DOT_COUNT - 1) / 2;
+        const distNorm  = Math.abs(i - center) / center;
+        const arriveAt  = (1 - distNorm) * dur;
         const lit       = elapsed >= arriveAt && elapsed <= arriveAt + 0.3;
         return lit ? s.color : null;
       }

@@ -56,14 +56,31 @@ MagiaML は **Magia Studio** 上でライトデバイスの発光演出をプロ
 - デバイス `i` は経過時間が `arriveAt = (i / 59) × duration` に達したとき点灯
 - 点灯は **0.4 秒間** 継続した後消灯
 
+### `wave-reverse`
+右から左へ波が走るエフェクト。  
+- デバイス `i` の比率 `ratio = i / 59`（0=左端, 1=右端）
+- `arriveAt = (1 - ratio) × duration`（右端が最初に点灯）
+- 点灯は **0.4 秒間** 継続した後消灯
+
 ### `split`
 中央から外側へ光が広がるエフェクト。  
 - 中央からの距離 `distNorm = |i - 29.5| / 29.5`（0=中央, 1=端）
 - デバイス `i` は経過時間が `arriveAt = distNorm × duration` に達したとき点灯し、その後**点灯し続ける**
 
+### `split-reverse`
+外側から中央へ光が収束するエフェクト。  
+- 中央からの距離 `distNorm = |i - 29.5| / 29.5`（0=中央, 1=端）
+- `arriveAt = (1 - distNorm) × duration`（両端が最初に点灯し、中央に向かって収束）
+- 点灯後はそのまま**点灯し続ける**
+
 ### `split-flash`
 `split` と同様に中央から外側へ広がるが、各デバイスは **0.3 秒間フラッシュ**して消灯。  
 - 点灯タイミング: `arriveAt = distNorm × duration`
+- 点灯時間: 0.3 秒
+
+### `split-flash-reverse`
+`split-reverse` と同様に外側から中央へ収束するが、各デバイスは **0.3 秒間フラッシュ**して消灯。  
+- 点灯タイミング: `arriveAt = (1 - distNorm) × duration`
 - 点灯時間: 0.3 秒
 
 ---
